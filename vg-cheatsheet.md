@@ -147,7 +147,7 @@ S	5	C
 * vg view - visualization
 
 
-Figure: Brifings in Bioinformatics 2016, doi:10.1093/bib/bbw089
+Figure: Briefings in Bioinformatics 2016, doi:10.1093/bib/bbw089
 
 ![bg 50%](fig/vg_logo_gray.png)
 ![bg 80%](fig/BriefBioinform-2016-bbw089-pangenome.png)
@@ -193,7 +193,7 @@ Figure: Brifings in Bioinformatics 2016, doi:10.1093/bib/bbw089
 
 This means, sequences starting from
 
-* the 11th base (10+1) on the node 9 and 
+* the 11th base (10+1) on the node 9 and
 * the 5th base (4+1) of the reverse complement strand on the node 15
 
 match with the query (note that base count is 0-based).
@@ -201,13 +201,64 @@ match with the query (note that base count is 0-based).
 
 <!--
 TODO: why vg find -g tiny.gcsa -S CAA returns same results twice or more? => fixed 2017/5/2
-# vg find -g tiny.gcsa -S CAA 
+# vg find -g tiny.gcsa -S CAA
 6:-0
 1:0
 6:-0
 15:1
 6:-0
 -->
+
+---
+
+# Haplotype
+
+`vg construct` uses VCF to make all possible edges (REF/ALT), then `vg index` uses VCF again to take samples' information. `-x` creates GPBWT (stable) index and `-G` creates GBWT (under dev) index.
+
+```
+#CHROM  POS  D  REF  ALT  ... FORMAT   1      2
+x     9    .    G    A    ...    GT    1|0    1|0
+x    10    .    C    T    ...    GT    1|1    0|1
+x    14    .    G    A    ...    GT    1|0    0|1
+x    34    .    T    A    ...    GT    1|1    1|1
+x    39    .    T    A    ...    GT    1|0    0|1
+
+```
+
+Save as tiny2.vcf and apply bgzip/tabix (see installation). Samples can be phased or unphased but there was a bug when mixed.
+
+```sh
+% vg construct -v tiny2.vcf.gz -r tiny.fa > tiny2.vg
+% vg index -v tiny2.vcf -x tiny2.xg -G tiny2.gbwt -p tiny2.vg
+```
+
+---
+
+# Haplotype (continued)
+
+`vg find` with `-t` returns all threads (paths) of haplotypes
+
+```sh
+% (vg find -x tiny2.xg -t; cat tiny2.vg) | vg view -
+  :
+P    _thread_1_x_0_0    1+,2+,4+,6+,7+,9+,10+,12+,13+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+P    _thread_1_x_1_0    1+,3+,4+,6+,8+,9+,10+,12+,14+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+P    _thread_2_x_0_0    1+,2+,5+,6+,8+,9+,10+,12+,14+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+P    _thread_2_x_1_0    1+,3+,4+,6+,7+,9+,10+,12+,13+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+  :
+```
+
+`vg find` with `-p` to specify a specific haplotype with the prefix
+
+```sh
+% (vg find -x tiny2.xg -q _thread_2; cat tiny2.vg) | vg view -
+  :
+P    _thread_2_x_0_0    1+,2+,5+,6+,8+,9+,10+,12+,14+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+P    _thread_2_x_1_0    1+,3+,4+,6+,7+,9+,10+,12+,13+,15+    8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+  :
+```
+
+TODO: check why cat is needed; how to use `.gbwt` instead of `.xg`.
 
 ---
 
@@ -257,7 +308,7 @@ And make a pileup.
 % vg pileup graph.vg graph.gam > graph.pileup
 ```
 
-Then call the result into VCF file.
+Then call and store the result into a VCF file.
 
 ```sh
 % vg call graph.vg graph.pileup > call.vcf
@@ -322,10 +373,22 @@ It is recommended to use Docker for resolving dependencies (need to give >3~4GB 
 % docker build -t vg -f Dockerfile.build .
 ```
 
-You may want to add following line to Dockerfile for handling VCF files and PNG/SVG image outputs:
+---
+
+# Installation (optional)
+
+You may want to add following line to Dockerfile for handling VCF files and PNG/SVG images:
 
 ```
 RUN apt-get install -y tabix graphviz
+```
+
+You need to use bgzip in htslib for making a tabix indexed VCF file compressed. On Mac with homebrew:
+
+```sh
+% brew install htslib
+% bgzip test.vcf
+% tabix -p vcf test.vcf.gz
 ```
 
 ---
@@ -442,29 +505,9 @@ usage: vg construct [options] >new.vg
                           Note: nodes larger than ~1024 bp can't be GCSA2-indexed
     -p, --progress        show progress
     -S, --handle-sv       include SVs in construction of graph.
-    -I, --insertions FILE a FASTA file containing insertion sequences 
+    -I, --insertions FILE a FASTA file containing insertion sequences
                            (referred to in VCF) to add to graph.
     -f, --flat-alts N     don't chop up alternate alleles from input vcf
-```
-
----
-
-# Advanced options for `vg xxx`
-
-To be written
-
-```sh
-% vg xxx
-```
-
----
-
-# Other options for `vg xxx`
-
-To be written
-
-```sh
-% vg xxx
 ```
 
 ---
@@ -499,3 +542,4 @@ To be written
 ```
 
 To be added
+
